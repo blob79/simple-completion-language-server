@@ -1,5 +1,5 @@
 use simple_completion_language_server::{ac_searcher, search, server, snippets, RopeReader};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
 use std::pin::Pin;
@@ -204,23 +204,76 @@ fn chunks_by_words() -> anyhow::Result<()> {
 }
 
 #[test_log::test]
+fn words_search_helix() -> anyhow::Result<()> {
+    let text = "## Words and stuff";
+    let doc = ropey::Rope::from_str(text);
+    let mut words = std::collections::HashSet::new();
+
+    let prefix = "## W";
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![" Words and stuff".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+    Ok(())
+}
+
+#[test_log::test]
 fn words_search() -> anyhow::Result<()> {
-    let text = r#"Word 求 btask_timeout HANDLERS["loggers"]"#;
+    let text = "Word 求 btask_timeout HANDLERS[\"loggers\"]\nStart of next line\nI am a short line\nAnd the last line";
     let doc = ropey::Rope::from_str(text);
     let mut words = std::collections::HashSet::new();
 
     let prefix = "BTA";
-    search(prefix, &doc, &ac_searcher(prefix)?, 10, &mut words)?;
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
     assert_eq!(
-        words.iter().next().map(|v| v.as_str()),
-        Some("btask_timeout")
+        vec!["btask_timeout".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
     );
 
     words.clear();
-
     let prefix = "logge";
-    search(prefix, &doc, &ac_searcher(prefix)?, 10, &mut words)?;
-    assert_eq!(words.iter().next().map(|v| v.as_str()), Some("loggers"));
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec!["loggers".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    words.clear();
+    let prefix = "Word";
+    let text = r#"Word 求 btask_timeout HANDLERS["loggers"]"#;
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    words.clear();
+    let prefix = "Start";
+    let text = "Start of next line";
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    words.clear();
+    let prefix = "And";
+    let text = "And the last line";
+    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    words.clear();
+    let prefix = "I a";
+    let text = "I am a short line";
+    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
 
     Ok(())
 }

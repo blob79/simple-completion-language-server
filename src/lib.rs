@@ -18,6 +18,8 @@ pub mod snippets;
 
 use snippets::Snippet;
 
+type Prefix<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>, &'a Document);
+
 pub struct StartOptions {
     pub home_dir: String,
     pub external_snippets_config_path: std::path::PathBuf,
@@ -31,6 +33,7 @@ pub struct BackendSettings {
     pub max_chars_prefix_len: usize,
     pub snippets_first: bool,
     pub snippets_inline_by_word_tail: bool,
+    pub complete_line: bool,
     // citation
     pub citation_prefix_trigger: String,
     pub citation_bibfile_extract_regexp: String,
@@ -48,6 +51,7 @@ pub struct PartialBackendSettings {
     pub max_path_chars: Option<usize>,
     pub snippets_first: Option<bool>,
     pub snippets_inline_by_word_tail: Option<bool>,
+    pub complete_line: Option<bool>,
     // citation
     pub citation_prefix_trigger: Option<String>,
     pub citation_bibfile_extract_regexp: Option<String>,
@@ -66,6 +70,7 @@ impl Default for BackendSettings {
             max_chars_prefix_len: 64,
             snippets_first: false,
             snippets_inline_by_word_tail: false,
+            complete_line: true,
             citation_prefix_trigger: "@".to_string(),
             citation_bibfile_extract_regexp: r#"bibliography:\s*['"\[]*([~\w\./\\-]*)['"\]]*"#
                 .to_string(),
@@ -89,6 +94,7 @@ impl BackendSettings {
             snippets_inline_by_word_tail: settings
                 .snippets_inline_by_word_tail
                 .unwrap_or(self.snippets_inline_by_word_tail),
+            complete_line: settings.complete_line.unwrap_or(self.complete_line),
             citation_prefix_trigger: settings
                 .citation_prefix_trigger
                 .clone()
@@ -107,6 +113,7 @@ impl BackendSettings {
         }
     }
 }
+
 
 #[inline]
 pub fn char_is_word(ch: char) -> bool {
@@ -189,10 +196,10 @@ impl std::io::Read for RopeReader<'_> {
     }
 }
 
-pub fn ac_searcher(prefix: &str) -> Result<AhoCorasick> {
+pub fn ac_searcher(prefixes: Vec<&str>) -> Result<AhoCorasick> {
     AhoCorasick::builder()
         .ascii_case_insensitive(true)
-        .build([&prefix])
+        .build(prefixes.iter().filter(|e| !e.is_empty()).collect::<Vec<_>>())
         .map_err(|e| anyhow::anyhow!("error {e}"))
 }
 
@@ -201,6 +208,7 @@ pub fn search(
     text: &Rope,
     ac: &AhoCorasick,
     max_completion_items: usize,
+    complete_line: bool,
     result: &mut HashSet<String>,
 ) -> Result<()> {
     let searcher = ac.try_stream_find_iter(RopeReader::new(text))?;
@@ -244,10 +252,49 @@ pub fn search(
 
         let item = text.slice(start_char_idx..end_char_idx);
         if let Some(item) = item.as_str() {
-            if item != prefix && starts_with(item, prefix) {
+            if !prefix.contains(" ") && item != prefix && starts_with(item, prefix) {
                 result.insert(item.to_string());
                 if result.len() >= max_completion_items {
                     return Ok(());
+                }
+            }
+        }
+
+        
+        // search line end
+        if complete_line {
+            if mat.start() > 0 {
+                let Ok(s) = text.try_byte_to_char(mat.start() - 1) else {
+                    continue;
+                };
+                let Some(ch) = text.get_char(s) else {
+                    continue;
+                };
+                if ch != '\n' {
+                    continue;
+                }
+            }
+            let line_end = text
+                .chars()
+                .skip(mat_end)
+                .take_while(|ch| *ch != '\n')
+                .count();
+
+            let Ok(line_end) = text.try_char_to_byte(line_end + mat_end) else {
+                continue;
+            };
+            let Ok(end_char_idxline_end_char_idx) = text.try_byte_to_char(line_end) else {
+                continue;
+            };
+
+            let item = text.slice(start_char_idx..end_char_idxline_end_char_idx);
+            if let Some(item) = item.as_str() {
+                if item != prefix && starts_with(item, prefix) {
+                    let item = item.trim_start_matches(|c: char| !c.is_alphabetic() && c != ' ');
+                    result.insert(item.to_string());
+                    if result.len() >= max_completion_items {
+                        return Ok(());
+                    }
                 }
             }
         }
@@ -419,11 +466,12 @@ impl BackendState {
         Ok(())
     }
 
+
     fn get_prefix(
         &self,
         max_chars: usize,
         params: &CompletionParams,
-    ) -> Result<(Option<&str>, Option<&str>, &Document)> {
+    ) -> Result<Prefix> {
         let Some(doc) = self
             .docs
             .get(&params.text_document_position.text_document.uri)
@@ -453,6 +501,23 @@ impl BackendState {
             anyhow::bail!("bounds error")
         }
 
+        
+        // line prefix
+        let cursor = doc
+            .text
+            .try_line_to_char(params.text_document_position.position.line as usize)?
+            + params.text_document_position.position.character as usize;
+        let mut iter = doc
+            .text
+            .get_chars_at(cursor)
+            .ok_or_else(|| anyhow::anyhow!("bounds error"))?;
+        iter.reverse();
+        let offset = iter.take_while(|ch| *ch != '\n').count();
+        let start_offset_line = cursor.saturating_sub(offset);
+        if start_offset_line > len_chars || cursor > len_chars {
+            anyhow::bail!("bounds error")
+        }
+
         let mut iter = doc
             .text
             .get_chars_at(cursor)
@@ -468,14 +533,20 @@ impl BackendState {
             anyhow::bail!("bounds error")
         }
 
-        let prefix = doc.text.slice(start_offset_word..cursor).as_str();
+        let prefix = doc.text.slice(start_offset_line..cursor).as_str();
         let chars_prefix = doc.text.slice(start_offset_chars..cursor).as_str();
-        Ok((prefix, chars_prefix, doc))
+        let line_prefix = doc.text.slice(start_offset_line..cursor).as_str();
+        Ok((prefix, chars_prefix, line_prefix, doc))
     }
 
-    fn completion(&self, prefix: &str, current_doc: &Document) -> Result<HashSet<String>> {
+    fn completion(&self, prefix: &str, line_prefix: &str, current_doc: &Document) -> Result<HashSet<String>> {
         // prepare search pattern
-        let ac = ac_searcher(prefix)?;
+        let prefixes = if self.settings.complete_line {
+            vec![prefix, line_prefix]
+        } else {
+            vec![prefix]
+        };
+        let ac = ac_searcher(prefixes)?;
         let mut result = HashSet::with_capacity(self.settings.max_completion_items);
 
         // search in current doc at first
@@ -484,6 +555,7 @@ impl BackendState {
             &current_doc.text,
             &ac,
             self.settings.max_completion_items,
+            self.settings.complete_line,
             &mut result,
         )?;
         if result.len() >= self.settings.max_completion_items {
@@ -496,6 +568,7 @@ impl BackendState {
                 &doc.text,
                 &ac,
                 self.settings.max_completion_items,
+                self.settings.complete_line,
                 &mut result,
             )?;
             if result.len() >= self.settings.max_completion_items {
@@ -506,8 +579,8 @@ impl BackendState {
         Ok(result)
     }
 
-    fn words(&self, prefix: &str, doc: &Document) -> impl Iterator<Item = CompletionItem> {
-        match self.completion(prefix, doc) {
+    fn words(&self, prefix: &str, line_prefix: &str, doc: &Document) -> impl Iterator<Item = CompletionItem> {
+        match self.completion(prefix, line_prefix, doc) {
             Ok(words) => words.into_iter(),
             Err(e) => {
                 tracing::error!("On complete by words: {e}");
@@ -1004,7 +1077,7 @@ impl BackendState {
                 BackendRequest::CompletionRequest((tx, params)) => {
                     let now = std::time::Instant::now();
 
-                    let Ok((prefix, chars_prefix, doc)) =
+                    let Ok((prefix, chars_prefix, line_prefix, doc)) =
                         self.get_prefix(self.settings.max_chars_prefix_len, &params)
                     else {
                         if tx
@@ -1074,9 +1147,9 @@ impl BackendState {
                             )
                             // words
                             .chain(
-                                if let Some(prefix) = prefix {
+                                if let (Some(prefix), Some(line_prefix)) = (prefix, line_prefix){
                                     if self.settings.feature_words {
-                                        Some(self.words(prefix, doc))
+                                        Some(self.words(prefix, line_prefix, doc))
                                     } else {
                                         None
                                     }
@@ -1160,10 +1233,11 @@ impl BackendState {
                     let results: Vec<CompletionItem> = base_completion();
 
                     tracing::debug!(
-                        "completion request by prefix: {prefix:?} chars prefix: {chars_prefix:?} took {:.2}ms with {} result items",
+                        "completion request by prefix: {prefix:?} chars prefix: {chars_prefix:?} line prefix: {line_prefix:?} took {:.2}ms with {} result items",
                         now.elapsed().as_millis(),
                         results.len(),
                     );
+                    tracing::debug!("{:?}", results);
 
                     let response =
                         BackendResponse::CompletionResponse(CompletionResponse::Array(results));
