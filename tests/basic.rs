@@ -220,7 +220,7 @@ fn words_search_helix() -> anyhow::Result<()> {
 
 #[test_log::test]
 fn words_search() -> anyhow::Result<()> {
-    let text = "Word 求 btask_timeout HANDLERS[\"loggers\"]\nStart of next line\nI am a short line\nAnd the last line";
+    let text = "Word 求 btask_timeout HANDLERS[\"loggers\"]\nStart of next line\nI am a short line\n    Hi there!\nAnd the last line";
     let doc = ropey::Rope::from_str(text);
     let mut words = std::collections::HashSet::new();
 
@@ -269,6 +269,25 @@ fn words_search() -> anyhow::Result<()> {
     words.clear();
     let prefix = "I a";
     let text = "I am a short line";
+    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    
+    words.clear();
+    let prefix = "    Hi";
+    let text = "    Hi there!";
+    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    assert_eq!(
+        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        words
+    );
+
+    words.clear();
+    let prefix = "Hi";
+    let text = "    Hi there!";
     search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
     assert_eq!(
         vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
@@ -360,7 +379,7 @@ async fn completion_by_quoted_word() -> anyhow::Result<()> {
     let lsp_types::CompletionResponse::Array(items) = response else {
         anyhow::bail!("completion array expected")
     };
-
+    println!("{:?}", items);
     assert_eq!(items.len(), 1);
     assert_eq!(
         items.into_iter().map(|i| i.label).collect::<Vec<_>>(),
@@ -402,7 +421,7 @@ async fn snippets() -> anyhow::Result<()> {
     let lsp_types::CompletionResponse::Array(items) = response else {
         anyhow::bail!("completion array expected")
     };
-
+    println!("{:?}", items);
     assert_eq!(items.len(), 1);
     assert_eq!(
         items

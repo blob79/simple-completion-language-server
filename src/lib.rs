@@ -263,8 +263,27 @@ pub fn search(
         
         // search line end
         if complete_line {
-            if mat.start() > 0 {
-                let Ok(s) = text.try_byte_to_char(mat.start() - 1) else {
+            let mut start = mat.start();
+            loop {
+                if start == 0 {
+                    break;
+                }
+                println!("{} {}", start, prefix);
+                let Ok(s) = text.try_byte_to_char(start - 1) else {
+                    break;
+                };
+                let Some(ch) = text.get_char(s) else {
+                    break;
+                };
+                if ch == ' ' {
+                    start-=1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            if start > 0 {
+                let Ok(s) = text.try_byte_to_char(start - 1) else {
                     continue;
                 };
                 let Some(ch) = text.get_char(s) else {
@@ -274,6 +293,7 @@ pub fn search(
                     continue;
                 }
             }
+            println!("S {}", start_char_idx);
             let line_end = text
                 .chars()
                 .skip(mat_end)
@@ -287,9 +307,14 @@ pub fn search(
                 continue;
             };
 
+            println!("E {}", end_char_idxline_end_char_idx);
             let item = text.slice(start_char_idx..end_char_idxline_end_char_idx);
             if let Some(item) = item.as_str() {
                 if item != prefix && starts_with(item, prefix) {
+                    let Ok(start_char_idx) = text.try_byte_to_char(start) else {
+                        continue;
+                    };
+                    let item = text.slice(start_char_idx..end_char_idxline_end_char_idx).as_str().unwrap();
                     let item = item.trim_start_matches(|c: char| !c.is_alphabetic() && c != ' ');
                     result.insert(item.to_string());
                     if result.len() >= max_completion_items {
