@@ -268,14 +268,13 @@ pub fn search(
                 if start == 0 {
                     break;
                 }
-                println!("{} {}", start, prefix);
                 let Ok(s) = text.try_byte_to_char(start - 1) else {
                     break;
                 };
                 let Some(ch) = text.get_char(s) else {
                     break;
                 };
-                if ch == ' ' {
+                if ch == ' ' || ch == '\t' {
                     start-=1;
                     continue;
                 } else {
@@ -293,7 +292,6 @@ pub fn search(
                     continue;
                 }
             }
-            println!("S {}", start_char_idx);
             let line_end = text
                 .chars()
                 .skip(mat_end)
@@ -307,7 +305,6 @@ pub fn search(
                 continue;
             };
 
-            println!("E {}", end_char_idxline_end_char_idx);
             let item = text.slice(start_char_idx..end_char_idxline_end_char_idx);
             if let Some(item) = item.as_str() {
                 if item != prefix && starts_with(item, prefix) {
