@@ -287,7 +287,7 @@ fn words_search() -> anyhow::Result<()> {
 
     words.clear();
     let prefix = "Hi";
-    let text = "    Hi there!";
+    let text = "Hi there!";
     search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
     assert_eq!(
         vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),

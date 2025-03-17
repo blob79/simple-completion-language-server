@@ -311,10 +311,6 @@ pub fn search(
             let item = text.slice(start_char_idx..end_char_idxline_end_char_idx);
             if let Some(item) = item.as_str() {
                 if item != prefix && starts_with(item, prefix) {
-                    let Ok(start_char_idx) = text.try_byte_to_char(start) else {
-                        continue;
-                    };
-                    let item = text.slice(start_char_idx..end_char_idxline_end_char_idx).as_str().unwrap();
                     let item = item.trim_start_matches(|c: char| !c.is_alphabetic() && c != ' ');
                     result.insert(item.to_string());
                     if result.len() >= max_completion_items {
