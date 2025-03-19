@@ -114,6 +114,13 @@ impl BackendSettings {
     }
 }
 
+#[inline]
+fn char_at_byte_idx(text: &Rope, byte_idx: usize) -> Option<char> {
+    let Ok(s) = text.try_byte_to_char(byte_idx) else {
+        return None;
+    };
+    return text.get_char(s);
+}
 
 #[inline]
 pub fn char_is_word(ch: char) -> bool {
@@ -225,13 +232,11 @@ pub fn search(
 
         // check is word start
         if mat.start() > 0 {
-            let Ok(s) = text.try_byte_to_char(mat.start() - 1) else {
-                continue;
-            };
-            let Some(ch) = text.get_char(s) else {
-                continue;
-            };
-            if char_is_word(ch) {
+            if let Some(ch) = char_at_byte_idx(text, mat.start() - 1) {
+                if char_is_word(ch) {
+                    continue;
+                }
+            } else {
                 continue;
             }
         }
@@ -260,7 +265,6 @@ pub fn search(
             }
         }
 
-        
         // search line end
         if complete_line {
             let mut start = mat.start();
@@ -268,24 +272,18 @@ pub fn search(
                 if start == 0 {
                     break;
                 }
-                let Ok(s) = text.try_byte_to_char(start - 1) else {
-                    break;
-                };
-                let Some(ch) = text.get_char(s) else {
+                let Some(ch) = char_at_byte_idx(text, start - 1) else {
                     break;
                 };
                 if ch == ' ' || ch == '\t' {
-                    start-=1;
+                    start -= 1;
                     continue;
                 } else {
                     break;
                 }
             }
             if start > 0 {
-                let Ok(s) = text.try_byte_to_char(start - 1) else {
-                    continue;
-                };
-                let Some(ch) = text.get_char(s) else {
+                let Some(ch) = char_at_byte_idx(text, start - 1) else {
                     continue;
                 };
                 if ch != '\n' {
@@ -301,11 +299,11 @@ pub fn search(
             let Ok(line_end) = text.try_char_to_byte(line_end + mat_end) else {
                 continue;
             };
-            let Ok(end_char_idxline_end_char_idx) = text.try_byte_to_char(line_end) else {
+            let Ok(end_char_idx) = text.try_byte_to_char(line_end) else {
                 continue;
             };
 
-            let item = text.slice(start_char_idx..end_char_idxline_end_char_idx);
+            let item = text.slice(start_char_idx..end_char_idx);
             if let Some(item) = item.as_str() {
                 if item != prefix && starts_with(item, prefix) {
                     let item = item.trim_start_matches(|c: char| !c.is_alphabetic() && c != ' ');
