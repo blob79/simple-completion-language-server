@@ -210,9 +210,19 @@ fn words_search_helix() -> anyhow::Result<()> {
     let mut words = std::collections::HashSet::new();
 
     let prefix = "## W";
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![" Words and stuff".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![" Words and stuff".to_owned()]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
     Ok(())
@@ -225,81 +235,170 @@ fn words_search() -> anyhow::Result<()> {
     let mut words = std::collections::HashSet::new();
 
     let prefix = "BTA";
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec!["btask_timeout".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec!["btask_timeout".to_owned()]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "logge";
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec!["loggers".to_owned()].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec!["loggers".to_owned()]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "Word";
     let text = r#"Word 求 btask_timeout HANDLERS["loggers"]"#;
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "Start";
     let text = "Start of next line";
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "And";
     let text = "And the last line";
-    search(prefix, &doc, &ac_searcher(vec![prefix, ""])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec![prefix, ""])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "I a";
     let text = "I am a short line";
-    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec!["", prefix])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
-    
     words.clear();
     let prefix = "    Hi";
     let text = "    Hi there!";
-    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec!["", prefix])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "Hi";
     let text = "Hi there!";
-    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec!["", prefix])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 
     words.clear();
     let prefix = "Tabs";
     let text = "Tabs there!";
-    search(prefix, &doc, &ac_searcher(vec!["", prefix])?, 10, true, &mut words)?;
+    search(
+        prefix,
+        &doc,
+        &ac_searcher(vec!["", prefix])?,
+        10,
+        true,
+        &mut words,
+    )?;
     assert_eq!(
-        vec![text].into_iter().map(|v| v.to_string()).collect::<HashSet<_>>(),
+        vec![text]
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect::<HashSet<_>>(),
         words
     );
 

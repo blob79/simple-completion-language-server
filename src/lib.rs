@@ -18,7 +18,12 @@ pub mod snippets;
 
 use snippets::Snippet;
 
-type Prefix<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>, &'a Document);
+type Prefix<'a> = (
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<&'a str>,
+    &'a Document,
+);
 
 pub struct StartOptions {
     pub home_dir: String,
@@ -206,7 +211,12 @@ impl std::io::Read for RopeReader<'_> {
 pub fn ac_searcher(prefixes: Vec<&str>) -> Result<AhoCorasick> {
     AhoCorasick::builder()
         .ascii_case_insensitive(true)
-        .build(prefixes.iter().filter(|e| !e.is_empty()).collect::<Vec<_>>())
+        .build(
+            prefixes
+                .iter()
+                .filter(|e| !e.is_empty())
+                .collect::<Vec<_>>(),
+        )
         .map_err(|e| anyhow::anyhow!("error {e}"))
 }
 
@@ -482,12 +492,7 @@ impl BackendState {
         Ok(())
     }
 
-
-    fn get_prefix(
-        &self,
-        max_chars: usize,
-        params: &CompletionParams,
-    ) -> Result<Prefix> {
+    fn get_prefix(&self, max_chars: usize, params: &CompletionParams) -> Result<Prefix> {
         let Some(doc) = self
             .docs
             .get(&params.text_document_position.text_document.uri)
@@ -517,7 +522,6 @@ impl BackendState {
             anyhow::bail!("bounds error")
         }
 
-        
         // line prefix
         let cursor = doc
             .text
@@ -555,7 +559,12 @@ impl BackendState {
         Ok((prefix, chars_prefix, line_prefix, doc))
     }
 
-    fn completion(&self, prefix: &str, line_prefix: &str, current_doc: &Document) -> Result<HashSet<String>> {
+    fn completion(
+        &self,
+        prefix: &str,
+        line_prefix: &str,
+        current_doc: &Document,
+    ) -> Result<HashSet<String>> {
         // prepare search pattern
         let prefixes = if self.settings.complete_line {
             vec![prefix, line_prefix]
@@ -595,7 +604,12 @@ impl BackendState {
         Ok(result)
     }
 
-    fn words(&self, prefix: &str, line_prefix: &str, doc: &Document) -> impl Iterator<Item = CompletionItem> {
+    fn words(
+        &self,
+        prefix: &str,
+        line_prefix: &str,
+        doc: &Document,
+    ) -> impl Iterator<Item = CompletionItem> {
         match self.completion(prefix, line_prefix, doc) {
             Ok(words) => words.into_iter(),
             Err(e) => {
@@ -1163,7 +1177,7 @@ impl BackendState {
                             )
                             // words
                             .chain(
-                                if let (Some(prefix), Some(line_prefix)) = (prefix, line_prefix){
+                                if let (Some(prefix), Some(line_prefix)) = (prefix, line_prefix) {
                                     if self.settings.feature_words {
                                         Some(self.words(prefix, line_prefix, doc))
                                     } else {
