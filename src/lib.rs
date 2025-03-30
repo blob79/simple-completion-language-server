@@ -277,23 +277,8 @@ pub fn search(
 
         // search line end
         if complete_line {
-            let mut start = mat.start();
-            loop {
-                if start == 0 {
-                    break;
-                }
-                let Some(ch) = char_at_byte_idx(text, start - 1) else {
-                    break;
-                };
-                if ch == ' ' || ch == '\t' {
-                    start -= 1;
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            if start > 0 {
-                let Some(ch) = char_at_byte_idx(text, start - 1) else {
+            if mat.start() > 0 {
+                let Some(ch) = char_at_byte_idx(text, mat.start() - 1) else {
                     continue;
                 };
                 if ch != '\n' {
@@ -312,7 +297,6 @@ pub fn search(
             let Ok(end_char_idx) = text.try_byte_to_char(line_end) else {
                 continue;
             };
-
             let item = text.slice(start_char_idx..end_char_idx);
             if let Some(item) = item.as_str() {
                 if item != prefix && starts_with(item, prefix) {
