@@ -487,7 +487,6 @@ async fn completion_by_quoted_word() -> anyhow::Result<()> {
     let lsp_types::CompletionResponse::Array(items) = response else {
         anyhow::bail!("completion array expected")
     };
-    println!("{:?}", items);
     assert_eq!(items.len(), 1);
     assert_eq!(
         items.into_iter().map(|i| i.label).collect::<Vec<_>>(),
@@ -529,7 +528,6 @@ async fn snippets() -> anyhow::Result<()> {
     let lsp_types::CompletionResponse::Array(items) = response else {
         anyhow::bail!("completion array expected")
     };
-    println!("{:?}", items);
     assert_eq!(items.len(), 1);
     assert_eq!(
         items
